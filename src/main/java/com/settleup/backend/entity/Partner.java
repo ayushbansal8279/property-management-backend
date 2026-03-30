@@ -2,6 +2,7 @@ package com.settleup.backend.entity;
 
 import java.util.UUID;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -23,9 +24,14 @@ public class Partner {
     @ManyToOne
     private Ledger ledger;
 
+    // 🔥 optional user
+    @ManyToOne
+    private User user;   // can be null
+
     private String name;
 
-    private String email;
+    @Column(nullable = true)
+    private String email;  // optional
 
     private String role;
 }
