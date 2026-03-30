@@ -1,3 +1,12 @@
+package com.settleup.backend.dto;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import lombok.Data;
+
 @Data
 public class ExpenseRequestDto {
 

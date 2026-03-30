@@ -1,5 +1,10 @@
 package com.settleup.backend.service;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import com.settleup.backend.dto.MyLedgerResponseDto;
 import com.settleup.backend.entity.Partner;
 import com.settleup.backend.entity.User;
@@ -7,10 +12,6 @@ import com.settleup.backend.repository.PartnerRepository;
 import com.settleup.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +33,7 @@ public class DashboardService {
             response.add(new MyLedgerResponseDto(
                     p.getLedger().getId(),
                     p.getLedger().getName(),
-                    p.getRole()
-            ));
+                    p.getRole()));
         }
 
         return response;

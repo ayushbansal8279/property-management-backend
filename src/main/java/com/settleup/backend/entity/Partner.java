@@ -26,12 +26,12 @@ public class Partner {
 
     // 🔥 optional user
     @ManyToOne
-    private User user;   // can be null
+    private User user; // can be null
 
     private String name;
 
     @Column(nullable = true)
-    private String email;  // optional
+    private String email; // optional
 
     private String role;
 }

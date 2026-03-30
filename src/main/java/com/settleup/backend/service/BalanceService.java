@@ -1,16 +1,24 @@
 package com.settleup.backend.service;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+
 import com.settleup.backend.dto.BalanceResponseDto;
+import com.settleup.backend.dto.SettlementResponseDto;
+import com.settleup.backend.entity.ExpenseSplit;
+import com.settleup.backend.entity.ExpenseSplitRepository;
 import com.settleup.backend.entity.Partner;
 import com.settleup.backend.entity.Transaction;
 import com.settleup.backend.repository.PartnerRepository;
 import com.settleup.backend.repository.TransactionRepository;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
-import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +26,7 @@ public class BalanceService {
 
     private final TransactionRepository transactionRepository;
     private final PartnerRepository partnerRepository;
+    private final ExpenseSplitRepository splitRepository;;
 
     public List<BalanceResponseDto> calculateBalances(UUID ledgerId) {
 
@@ -36,7 +45,8 @@ public class BalanceService {
         // =========================
         for (Transaction tx : transactions) {
 
-            if ("EXPENSE".equals(tx.getType())) continue; // handled separately
+            if ("EXPENSE".equals(tx.getType()))
+                continue; // handled separately
 
             UUID from = tx.getFromPartnerId();
             UUID to = tx.getToPartnerId();
@@ -56,7 +66,8 @@ public class BalanceService {
         // =========================
         for (Transaction tx : transactions) {
 
-            if (!"EXPENSE".equals(tx.getType())) continue;
+            if (!"EXPENSE".equals(tx.getType()))
+                continue;
 
             UUID payerId = tx.getFromPartnerId();
 
@@ -86,8 +97,7 @@ public class BalanceService {
             response.add(new BalanceResponseDto(
                     p.getId(),
                     p.getName(),
-                    balanceMap.getOrDefault(p.getId(), BigDecimal.ZERO)
-            ));
+                    balanceMap.getOrDefault(p.getId(), BigDecimal.ZERO)));
         }
 
         return response;
@@ -95,51 +105,52 @@ public class BalanceService {
 
     public List<SettlementResponseDto> calculateSettlements(UUID ledgerId) {
 
-    List<BalanceResponseDto> balances = calculateBalances(ledgerId);
+        List<BalanceResponseDto> balances = calculateBalances(ledgerId);
 
-    List<BalanceResponseDto> creditors = new ArrayList<>();
-    List<BalanceResponseDto> debtors = new ArrayList<>();
+        List<BalanceResponseDto> creditors = new ArrayList<>();
+        List<BalanceResponseDto> debtors = new ArrayList<>();
 
-    // separate creditors & debtors
-    for (BalanceResponseDto b : balances) {
-        if (b.getBalance().compareTo(BigDecimal.ZERO) > 0) {
-            creditors.add(b);
-        } else if (b.getBalance().compareTo(BigDecimal.ZERO) < 0) {
-            debtors.add(b);
+        // separate creditors & debtors
+        for (BalanceResponseDto b : balances) {
+            if (b.getBalance().compareTo(BigDecimal.ZERO) > 0) {
+                creditors.add(b);
+            } else if (b.getBalance().compareTo(BigDecimal.ZERO) < 0) {
+                debtors.add(b);
+            }
         }
+
+        List<SettlementResponseDto> settlements = new ArrayList<>();
+
+        int i = 0, j = 0;
+
+        while (i < debtors.size() && j < creditors.size()) {
+
+            BalanceResponseDto debtor = debtors.get(i);
+            BalanceResponseDto creditor = creditors.get(j);
+
+            BigDecimal debtAmount = debtor.getBalance().abs();
+            BigDecimal creditAmount = creditor.getBalance();
+
+            BigDecimal settleAmount = debtAmount.min(creditAmount);
+
+            settlements.add(new SettlementResponseDto(
+                    debtor.getPartnerId(),
+                    debtor.getPartnerName(),
+                    creditor.getPartnerId(),
+                    creditor.getPartnerName(),
+                    settleAmount));
+
+            // update balances
+            debtor.setBalance(debtor.getBalance().add(settleAmount));
+            creditor.setBalance(creditor.getBalance().subtract(settleAmount));
+
+            // move pointers
+            if (debtor.getBalance().compareTo(BigDecimal.ZERO) == 0)
+                i++;
+            if (creditor.getBalance().compareTo(BigDecimal.ZERO) == 0)
+                j++;
+        }
+
+        return settlements;
     }
-
-    List<SettlementResponseDto> settlements = new ArrayList<>();
-
-    int i = 0, j = 0;
-
-    while (i < debtors.size() && j < creditors.size()) {
-
-        BalanceResponseDto debtor = debtors.get(i);
-        BalanceResponseDto creditor = creditors.get(j);
-
-        BigDecimal debtAmount = debtor.getBalance().abs();
-        BigDecimal creditAmount = creditor.getBalance();
-
-        BigDecimal settleAmount = debtAmount.min(creditAmount);
-
-        settlements.add(new SettlementResponseDto(
-                debtor.getPartnerId(),
-                debtor.getPartnerName(),
-                creditor.getPartnerId(),
-                creditor.getPartnerName(),
-                settleAmount
-        ));
-
-        // update balances
-        debtor.setBalance(debtor.getBalance().add(settleAmount));
-        creditor.setBalance(creditor.getBalance().subtract(settleAmount));
-
-        // move pointers
-        if (debtor.getBalance().compareTo(BigDecimal.ZERO) == 0) i++;
-        if (creditor.getBalance().compareTo(BigDecimal.ZERO) == 0) j++;
-    }
-
-    return settlements;
-}
 }

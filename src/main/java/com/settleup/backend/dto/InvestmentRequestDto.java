@@ -1,9 +1,18 @@
+package com.settleup.backend.dto;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+
 @Data
-public class ShareTransferRequestDto {
+@Getter
+@Setter
 
-    private UUID fromPartnerId;
-    private UUID toPartnerId;
+public class InvestmentRequestDto {
 
-    private BigDecimal percentage;   // 🔥 % of property
-    private BigDecimal amountPaid;   // 🔥 deal value
+    private UUID partnerId; // ✅ who is investing
+    private BigDecimal amount; // ✅ amount invested
 }

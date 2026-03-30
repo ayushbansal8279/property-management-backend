@@ -1,3 +1,23 @@
+package com.settleup.backend.service;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.settleup.backend.dto.ExpenseRequestDto;
+import com.settleup.backend.entity.ExpenseSplit;
+import com.settleup.backend.entity.ExpenseSplitRepository;
+import com.settleup.backend.entity.Ledger;
+import com.settleup.backend.entity.Partner;
+import com.settleup.backend.entity.Transaction;
+import com.settleup.backend.repository.LedgerRepository;
+import com.settleup.backend.repository.PartnerRepository;
+import com.settleup.backend.repository.TransactionRepository;
+
+import lombok.RequiredArgsConstructor;
+
 @Service
 @RequiredArgsConstructor
 public class ExpenseService {
