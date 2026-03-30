@@ -15,16 +15,17 @@ public class PropertyOwnershipController {
 
     // 🔄 TRANSFER
     @PostMapping("/transfer/{propertyId}")
-    public void transfer(@PathVariable UUID propertyId,
-                         @RequestBody ShareTransferRequestDto req) {
+public void transfer(@PathVariable UUID propertyId,
+                     @RequestBody ShareTransferRequestDto req) {
 
-        service.transferShare(
-                propertyId,
-                req.getFromPartnerId(),
-                req.getToPartnerId(),
-                req.getPercentage()
-        );
-    }
+    service.transferShare(
+            propertyId,
+            req.getFromPartnerId(),
+            req.getToPartnerId(),
+            req.getPercentage(),
+            req.getAmountPaid()
+    );
+}
 
     // 📋 GET
     @GetMapping("/{propertyId}")

@@ -25,4 +25,8 @@ public class BalanceController {
 public List<SettlementResponseDto> getSettlements(@PathVariable UUID ledgerId) {
     return balanceService.calculateSettlements(ledgerId);
 }
+@PostMapping("/expense")
+public void addExpense(@RequestBody ExpenseRequestDto req) {
+    expenseService.addExpense(req);
+}
 }

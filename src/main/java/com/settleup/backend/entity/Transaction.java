@@ -46,5 +46,7 @@ public class Transaction {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> metadata;
 
+    private String comments;
+
     private LocalDateTime createdAt;
 }

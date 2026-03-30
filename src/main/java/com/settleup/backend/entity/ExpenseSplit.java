@@ -10,22 +10,18 @@ import java.util.UUID;
 @Entity
 @Getter
 @Setter
-@Table(name = "property_ownerships")
-public class PropertyOwnership {
+@Table(name = "expense_splits")
+public class ExpenseSplit {
 
     @Id
     @GeneratedValue
     private UUID id;
 
     @ManyToOne
-    private Property property;
+    private Transaction transaction;
 
     @ManyToOne
     private Partner partner;
 
-    // 🔥 SOURCE OF TRUTH
-    private BigDecimal ownershipPercentage;
-
-    // 🔥 COST BASIS
-    private BigDecimal investmentAmount;
+    private BigDecimal amount;
 }

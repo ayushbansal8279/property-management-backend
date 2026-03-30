@@ -5,8 +5,9 @@ public class PropertyOwnershipService {
     private final PropertyOwnershipRepository ownershipRepository;
     private final PropertyRepository propertyRepository;
     private final PartnerRepository partnerRepository;
+    private final TransactionRepository transactionRepository;
 
-    // 💰 INVESTMENT
+    // 💰 INVESTMENT (does NOT change %)
     public void addInvestment(UUID propertyId, UUID partnerId, BigDecimal amount) {
 
         Property property = propertyRepository.findById(propertyId)
@@ -15,79 +16,88 @@ public class PropertyOwnershipService {
         Partner partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new RuntimeException("Partner not found"));
 
-        PropertyOwnership ownership = ownershipRepository
-                .findByPropertyId(propertyId)
+        PropertyOwnership ownership = ownershipRepository.findByPropertyId(propertyId)
                 .stream()
                 .filter(o -> o.getPartner().getId().equals(partnerId))
                 .findFirst()
-                .orElse(new PropertyOwnership());
+                .orElseGet(() -> {
+                    PropertyOwnership o = new PropertyOwnership();
+                    o.setProperty(property);
+                    o.setPartner(partner);
+                    o.setOwnershipPercentage(BigDecimal.ZERO); // initially 0%
+                    o.setInvestmentAmount(BigDecimal.ZERO);
+                    return o;
+                });
 
-        ownership.setProperty(property);
-        ownership.setPartner(partner);
-
-        BigDecimal newInvestment = ownership.getInvestmentAmount() == null
-                ? amount
-                : ownership.getInvestmentAmount().add(amount);
-
-        ownership.setInvestmentAmount(newInvestment);
+        ownership.setInvestmentAmount(
+                ownership.getInvestmentAmount().add(amount)
+        );
 
         ownershipRepository.save(ownership);
-
-        recalculateOwnership(propertyId);
     }
 
-    // 📊 RECALCULATE %
-    private void recalculateOwnership(UUID propertyId) {
+    // 🔄 SHARE TRANSFER (REAL LOGIC)
+    public void transferShare(UUID propertyId,
+                              UUID fromId,
+                              UUID toId,
+                              BigDecimal percentage,
+                              BigDecimal amountPaid) {
 
-        List<PropertyOwnership> list = ownershipRepository.findByPropertyId(propertyId);
-
-        BigDecimal total = list.stream()
-                .map(PropertyOwnership::getInvestmentAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        for (PropertyOwnership o : list) {
-            BigDecimal percent = o.getInvestmentAmount()
-                    .divide(total, 4, RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100));
-
-            o.setOwnershipPercentage(percent);
-        }
-
-        ownershipRepository.saveAll(list);
-    }
-
-    // 🔄 SHARE TRANSFER
-    public void transferShare(UUID propertyId, UUID fromId, UUID toId, BigDecimal percent) {
+        Property property = propertyRepository.findById(propertyId)
+                .orElseThrow();
 
         List<PropertyOwnership> list = ownershipRepository.findByPropertyId(propertyId);
 
         PropertyOwnership from = list.stream()
                 .filter(o -> o.getPartner().getId().equals(fromId))
                 .findFirst()
-                .orElseThrow();
+                .orElseThrow(() -> new RuntimeException("From partner not found"));
 
         PropertyOwnership to = list.stream()
                 .filter(o -> o.getPartner().getId().equals(toId))
                 .findFirst()
                 .orElseGet(() -> {
-                    PropertyOwnership newOne = new PropertyOwnership();
-                    newOne.setProperty(from.getProperty());
-                    newOne.setPartner(partnerRepository.findById(toId).orElseThrow());
-                    newOne.setInvestmentAmount(BigDecimal.ZERO);
-                    return newOne;
+                    PropertyOwnership o = new PropertyOwnership();
+                    o.setProperty(property);
+                    o.setPartner(partnerRepository.findById(toId).orElseThrow());
+                    o.setOwnershipPercentage(BigDecimal.ZERO);
+                    o.setInvestmentAmount(BigDecimal.ZERO);
+                    return o;
                 });
 
-        BigDecimal transferAmount = from.getInvestmentAmount()
-                .multiply(percent)
+        // 🔥 VALIDATION
+        if (from.getOwnershipPercentage().compareTo(percentage) < 0) {
+            throw new RuntimeException("Not enough ownership to transfer");
+        }
+
+        // 🔥 STEP 1: Update ownership %
+        from.setOwnershipPercentage(from.getOwnershipPercentage().subtract(percentage));
+        to.setOwnershipPercentage(to.getOwnershipPercentage().add(percentage));
+
+        // 🔥 STEP 2: Calculate BOOK VALUE
+        BigDecimal bookValue = property.getTotalValue()
+                .multiply(percentage)
                 .divide(BigDecimal.valueOf(100));
 
-        from.setInvestmentAmount(from.getInvestmentAmount().subtract(transferAmount));
-        to.setInvestmentAmount(to.getInvestmentAmount().add(transferAmount));
+        // 🔥 STEP 3: Update investment
+        from.setInvestmentAmount(from.getInvestmentAmount().subtract(bookValue));
+        to.setInvestmentAmount(to.getInvestmentAmount().add(amountPaid));
 
         ownershipRepository.save(from);
         ownershipRepository.save(to);
 
-        recalculateOwnership(propertyId);
+        // 🔥 STEP 4: Record transaction
+        Transaction tx = new Transaction();
+        tx.setType("SHARE_TRANSFER");
+        tx.setFromPartnerId(toId);   // buyer pays
+        tx.setToPartnerId(fromId);   // seller receives
+        tx.setAmount(amountPaid);
+        tx.setProperty(property);
+        tx.setLedger(property.getLedger());
+        tx.setDescription("Share transfer");
+        tx.setCreatedAt(LocalDateTime.now());
+
+        transactionRepository.save(tx);
     }
 
     // 📋 GET OWNERSHIP
@@ -102,4 +112,5 @@ public class PropertyOwnershipService {
                 ))
                 .toList();
     }
+}
 }
